@@ -7,7 +7,7 @@ set -e
 username=$(aws sts get-caller-identity | jq -r '.Arn' | tr "/" "\n" | grep -v "arn:aws:iam")
 mfa_arn=$(aws iam list-mfa-devices --user-name "${username}" | jq -r '.MFADevices[].SerialNumber')
 echo -n "Please enter your AWS MFA token: " && read -r token_code;
-session_token=$(aws sts get-session-token --serial-number "${mfa_arn}" --token-code "${token_code}")
+session_token=$(aws sts get-session-token --serial-number "${mfa_arn}" --token-code "${token_code}" --duration-seconds 7200)
 
 ACCESS_KEY_ID=$(echo "${session_token}" | jq -r '.Credentials.AccessKeyId')
 SECRET_ACCESS_KEY=$(echo "${session_token}" | jq -r '.Credentials.SecretAccessKey')
