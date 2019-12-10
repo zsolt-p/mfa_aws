@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Used to generate AWS profile to enable access to MFA-protected API calls
+
+set -e
+
+username=$(aws sts get-caller-identity | jq -r '.Arn' | tr "/" "\n" | grep -v "arn:aws:iam")
+mfa_arn=$(aws iam list-mfa-devices --user-name "${username}" | jq -r '.MFADevices[].SerialNumber')
+echo -n "Please enter your AWS MFA token: " && read -r token_code;
+session_token=$(aws sts get-session-token --serial-number "${mfa_arn}" --token-code "${token_code}")
+
+ACCESS_KEY_ID=$(echo "${session_token}" | jq -r '.Credentials.AccessKeyId')
+SECRET_ACCESS_KEY=$(echo "${session_token}" | jq -r '.Credentials.SecretAccessKey')
+SESSION_TOKEN=$(echo "${session_token}" | jq -r '.Credentials.SessionToken')
+
+aws configure set aws_access_key_id "${ACCESS_KEY_ID}" --profile mfa
+aws configure set aws_secret_access_key "${SECRET_ACCESS_KEY}" --profile mfa
+aws configure set aws_session_token "${SESSION_TOKEN}" --profile mfa
+
+echo "==> aws-cli authenticated with MFA device."
+echo "==> Append '--profile mfa' to API calls requiring MFA."
+echo "==> Expiry: $(echo "${session_token}" | jq -r '.Credentials.Expiration')"
